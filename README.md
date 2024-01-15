@@ -75,6 +75,7 @@ You can configure the action further with the following options:
 - `build_script_name`: Name of the optional NPM build script which is executed before `electron-builder` (default: `"build"`)
 - `skip_build`: Whether the action should execute the NPM build script before running `electron-builder`
 - `use_vue_cli`: Whether to run `electron-builder` using the [Vue CLI plugin](https://nklayman.github.io/vue-cli-plugin-electron-builder) instead of calling the command directly
+- `is_monorepo`: Whether the package is in a monorepo (will look for lockfiles in parent directories)
 - `args`: Other arguments to pass to the `electron-builder` command, e.g. configuration overrides (default: `""`)
 - `max_attempts`: Maximum number of attempts for completing the build and release step (default: `1`)
 

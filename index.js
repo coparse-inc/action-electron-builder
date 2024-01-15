@@ -70,6 +70,7 @@ const runAction = () => {
 	const buildScriptName = getInput("build_script_name", true);
 	const skipBuild = getInput("skip_build") === "true";
 	const useVueCli = getInput("use_vue_cli") === "true";
+	const isMonorepo = getInput("is_monorepo") === "true";
 	const args = getInput("args") || "";
 	const maxAttempts = Number(getInput("max_attempts") || "1");
 
@@ -78,11 +79,14 @@ const runAction = () => {
 	const appRoot = getInput("app_root") || pkgRoot;
 
 	const pkgJsonPath = join(pkgRoot, "package.json");
-	const pkgLockPath = join(pkgRoot, "package-lock.json");
+	const pkgLockPath = join(pkgRoot, `${isMonorepo ? "../../" : ""}package-lock.json`);
+	const pnpmLockPath = join(pkgRoot, `${isMonorepo ? "../../" : ""}pnpm-lock.yaml`)
 
-	// Determine whether NPM should be used to run commands (instead of Yarn, which is the default)
+	// Determine whether NPM or PNPM should be used to run commands (instead of Yarn, which is the default)
 	const useNpm = existsSync(pkgLockPath);
-	log(`Will run ${useNpm ? "NPM" : "Yarn"} commands in directory "${pkgRoot}"`);
+	const usePnpm = existsSync(pnpmLockPath);
+	const scriptRunner = useNpm ? "npm" : usePnpm ? "pnpm" : "yarn"
+	log(`Will run ${scriptRunner} commands in directory "${pkgRoot}"`);
 
 	// Make sure `package.json` file exists
 	if (!existsSync(pkgJsonPath)) {
@@ -105,8 +109,8 @@ const runAction = () => {
 	// Disable console advertisements during install phase
 	setEnv("ADBLOCK", true);
 
-	log(`Installing dependencies using ${useNpm ? "NPM" : "Yarn"}…`);
-	run(useNpm ? "npm install" : "yarn", pkgRoot);
+	log(`Installing dependencies using ${scriptRunner}…`);
+	run(`${scriptRunner} install`, pkgRoot);
 
 	// Run NPM build script if it exists
 	if (skipBuild) {
@@ -115,6 +119,8 @@ const runAction = () => {
 		log("Running the build script…");
 		if (useNpm) {
 			run(`npm run ${buildScriptName} --if-present`, pkgRoot);
+		} else if (usePnpm) {
+			run(`pnpm run --if-present ${buildScriptName}`, pkgRoot);
 		} else {
 			// TODO: Use `yarn run ${buildScriptName} --if-present` once supported
 			// https://github.com/yarnpkg/yarn/issues/6894
@@ -130,7 +136,7 @@ const runAction = () => {
 	for (let i = 0; i < maxAttempts; i += 1) {
 		try {
 			run(
-				`${useNpm ? "npx --no-install" : "yarn run"} ${cmd} --${platform} ${
+				`${useNpm ? "npx --no-install" : usePnpm ? "pnpm exec" : "yarn run"} ${cmd} --${platform} ${
 					release ? "--publish always" : ""
 				} ${args}`,
 				appRoot,
